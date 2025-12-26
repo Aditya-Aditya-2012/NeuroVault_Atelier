@@ -1,0 +1,8 @@
+{
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.typeCheckingMode": "off",
+    "python.languageServer": "Pylance",
+    "python.analysis.extraPaths": [
+        "./venv/lib/python3.12/site-packages"
+    ]
+}
