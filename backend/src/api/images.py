@@ -37,14 +37,14 @@ async def upload_landscape(
     new_image = Image(
         filename = filename,
         file_path = str(file_location),
-        owner_id = current_user.id #hardcoded for now until we fix auth dependency
+        owner_id = current_user.id 
     )
     db.add(new_image)
 
     try:
         await db.commit()
         await db.refresh(new_image)
-        process_landscape_task.delay(new_image.id)
+        process_landscape_task.apply_async(args=[new_image.id], queue="ai_queue")
         return {
             "id": new_image.id, 
             "filename": filename,
@@ -64,3 +64,24 @@ async def get_my_images(
     images = result.scalars().all()
 
     return images
+
+@router.get("/{image_id}/status")
+async def get_image_status(
+    image_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(Image).where(Image.id == image_id, Image.owner_id == current_user.id)
+    )
+    image = result.scalars().first()
+
+    # If no image found, raise 404
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found or access denied")
+    
+    return {
+        "id": image_id,
+        "filename": image.filename,
+        "is_processed": image.is_processed
+    }
