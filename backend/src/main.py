@@ -1,20 +1,15 @@
 # backend/src/main.py
 from contextlib import asynccontextmanager
+from backend.src.tasks.ai_tasks import GENERATED_DIR
 from fastapi import FastAPI
 from backend.src.models.user import User
 from backend.src.models.image import Image
 from backend.src.db.session import engine
 from backend.src.db.base import Base
 from backend.src.api import auth, images
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
-# ---------------------------------------------------------
-# 🚩 BUG HUNTING ZONE 🚩
-# ---------------------------------------------------------
-# We want to create tables when the app starts.
-# We are importing 'Base' from db.base.
-# Does 'db.base' know about the 'User' model? 
-# If Python hasn't read the 'models/user.py' file yet,
-# Base.metadata will be EMPTY.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Create tables
@@ -25,6 +20,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="NeuroVault Atelier", lifespan=lifespan)
 
+GENERATED_DIR = Path("backend/data/generated")
+GENERATED_DIR.mkdir(parents=True, exist_ok=True)
+
+app.mount("/outputs", StaticFiles(directory=str(GENERATED_DIR)), name="outputs")
 # Include our routes
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(images.router, prefix="/images", tags=["images"])

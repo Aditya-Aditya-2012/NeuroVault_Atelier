@@ -12,7 +12,8 @@ from alembic import context
 from backend.src.db.base import Base
 from backend.src.models.user import User
 from backend.src.models.image import Image
-
+from backend.src.models.task import AITask, TaskStatus
+from backend.src.models.output import Output
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

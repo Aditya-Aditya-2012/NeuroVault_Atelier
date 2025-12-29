@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.src.db.session import get_db
 from backend.src.models.image import Image
 from backend.src.models.user import User
-from backend.src.tasks.ai_tasks import process_landscape_task
+from backend.src.models.task import AITask, TaskStatus
+from backend.src.tasks.ai_tasks import process_landscape_task, process_multi_alchemy
 from sqlalchemy import select
 
 router = APIRouter()
@@ -84,4 +85,66 @@ async def get_image_status(
         "id": image_id,
         "filename": image.filename,
         "is_processed": image.is_processed
+    }
+
+@router.post("/alchemy")
+async def create_alchemy_task(
+    image_ids: list[int],
+    prompt: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if len(image_ids) > 3:
+        raise HTTPException(status_code=400, detail="Maximum 3 images allowed")
+    
+    result = await db.execute(
+        select(Image).where(Image.id.in_(image_ids))
+    )
+    found_images = result.scalars().all()
+
+    if len(found_images) != len(image_ids):
+        raise HTTPException(status_code=404, detail="One or more images not found")
+    
+    for images in found_images:
+        if images.owner_id != current_user.id :
+            raise HTTPException(status_code=404, detail="Unauthorized")
+    
+    new_task = AITask(
+        user_id = current_user.id, 
+        input_image_ids = image_ids,
+        prompt = prompt,
+        status=TaskStatus.PENDING
+    )
+    db.add(new_task)
+    await db.commit()
+    await db.refresh(new_task)
+
+    process_multi_alchemy.apply_async(args=[new_task.id], queue="ai_queue")
+
+    return {"task_id": new_task.id, "status": new_task.status}
+
+@router.get("/search/{keyword}")
+async def search_by_keyword(
+    keyword: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(Image).where(Image.keywords.any(keyword), Image.owner_id == current_user.id)
+    )
+    found_images = result.scalars.all()
+
+    if not found_images:
+        raise HTTPException(status=404, detail=f"Images with keyword:{keyword} not found")
+    
+    return {
+        "count": len(found_images),
+        "results":[
+            {
+                "id": img.id,
+                "filename": img.filename,
+                "created_at": img.created_at.isoformat(),
+                "keywords": img.keywords
+            } for img in found_images
+        ]
     }
