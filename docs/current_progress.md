@@ -15,13 +15,13 @@
 [x] Asynchronous Pipeline: API successfully triggers background tasks using .delay().
 [x] Task Tracking: Added is_processed column to track worker progress via Alembic.
 [x] Status Polling: Created GET /images/{id}/status with security checks.
-[ ] Real Image Transformation: Replace time.sleep(10) with Pillow to generate a grayscale version of the image.
-[ ] Multi-Image Logic: Update the AI_Tasks schema to support combining 1-3 source images.
-[ ] Keyword Indexing: Add a keywords column and a background task to tag images for search.
-[ ] Result Lineage: Implement the source_filenames column in the Outputs table.
+[x] Real Image Transformation: Replace time.sleep(10) with Pillow to generate a grayscale version of the image.
+[x] Multi-Image Logic: Update the AI_Tasks schema to support combining 1-3 source images.
+[x] Keyword Indexing: Add a keywords column and a background task to tag images for search.
+[x] Result Lineage: Implement the source_filenames column in the Outputs table.
 ## Phase 4: Serving & Discovery (UPCOMING)
-[ ] Static Assets: Configure FastAPI to serve the uploads and generated folders.
-[ ] Semantic Search: Build a search endpoint that filters images by keywords (e.g., "sunset").
+[x] Static Assets: Configure FastAPI to serve the uploads and generated folders.
+[x] Semantic Search: Build a search endpoint that filters images by keywords (e.g., "sunset").
 [ ] Full Gallery View: Create a unified API response that returns an original image alongside all its generated "AI Art" variations.
 ## Phase 5: The Frontend & Deployment (FUTURE)
 [ ] Frontend MVP: Build a React/Vue interface for uploading, searching, and triggering "Alchemy" combinations.

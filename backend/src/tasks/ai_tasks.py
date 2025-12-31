@@ -13,6 +13,7 @@ from backend.src.models.user import User
 from backend.src.models.task import AITask, TaskStatus
 from backend.src.models.output import Output
 from PIL import Image as PILImage
+from backend.src.ai_engine.librarian import librarian
 
 SYNC_DB_URL = SQLALCHEMY_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
 GENERATED_DIR = Path("backend/data/generated")
@@ -104,5 +105,28 @@ def process_multi_alchemy(task_id: int):
         print(f"Alchemy failed: {e}")
         task.status = TaskStatus.FAILED
         db.commit()
+    finally:
+        db.close()
+
+@celery_app.task(name="auto_tag_image")
+def auto_tag_image_task(image_id: int):
+    db = SessionLocal()
+    try:
+        img_record = db.query(Image).filter(Image.id == image_id).first()
+        if not img_record:
+            print(f"Image not found in databse")
+            return
+        
+        detected_tags = librarian.analyze_image(img_record.file_path)
+        if not detected_tags:
+            detected_tags = []
+        current_keywords = img_record.keywords if img_record.keywords is not None else []
+        img_record.keywords = list(set(current_keywords + detected_tags))
+        img_record.is_processed = True
+        db.commit()
+        print(f"successfully tagged {img_record.filename}")
+    except Exception as e:
+        db.rollback()
+        print(f"Tagging failed: {e}")
     finally:
         db.close()

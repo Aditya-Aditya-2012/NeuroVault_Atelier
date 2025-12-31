@@ -9,9 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.src.db.session import get_db
 from backend.src.models.image import Image
 from backend.src.models.user import User
+from backend.src.models.output import Output
 from backend.src.models.task import AITask, TaskStatus
-from backend.src.tasks.ai_tasks import process_landscape_task, process_multi_alchemy
+from backend.src.tasks.ai_tasks import auto_tag_image_task, process_landscape_task, process_multi_alchemy
 from sqlalchemy import select
+from collections import defaultdict
 
 router = APIRouter()
 
@@ -45,7 +47,8 @@ async def upload_landscape(
     try:
         await db.commit()
         await db.refresh(new_image)
-        process_landscape_task.apply_async(args=[new_image.id], queue="ai_queue")
+        #process_landscape_task.apply_async(args=[new_image.id], queue="ai_queue")
+        auto_tag_image_task.apply_async(args=[new_image.id], queue="ai_queue")
         return {
             "id": new_image.id, 
             "filename": filename,
@@ -132,7 +135,7 @@ async def search_by_keyword(
     result = await db.execute(
         select(Image).where(Image.keywords.any(keyword), Image.owner_id == current_user.id)
     )
-    found_images = result.scalars.all()
+    found_images = result.scalars().all()
 
     if not found_images:
         raise HTTPException(status=404, detail=f"Images with keyword:{keyword} not found")
@@ -148,3 +151,68 @@ async def search_by_keyword(
             } for img in found_images
         ]
     }
+
+@router.get("/{image_id}/history")
+async def get_image_history(
+    image_id : int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(Image).where(Image.id == image_id, Image.owner_id == current_user.id)
+    )
+
+    image = result.scalars().first()
+
+    if not image:
+        raise HTTPException(status_code=404, detail="image not found or access denied")
+    
+    res_outputs = await db.execute(
+        select(Output).where(Output.source_filenames.any(image.file_path))
+    )
+
+    outputs = res_outputs.scalars().all()
+
+    return {
+        "original_id": {image_id},
+        "generatedimages": [output.gen_file_path for output in outputs]
+        }
+
+@router.get("/gallery")
+async def get_full_gallery(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Image).where(Image.owner_id == current_user.id)
+    )
+    images = result.scalars().all()
+
+    if not images:
+        print(f"you have no images currently")
+        return []
+
+    all_paths = [img.file_path for img in images]
+
+    out_result = await db.execute(
+        select(Output).where(Output.source_filenames.overlap(all_paths))
+    )
+
+    outputs = out_result.scalars().all()
+
+    output_map = defaultdict(list)
+    for out in outputs:
+        for path in out.source_filenames:
+            output_map[path].append(out.gen_file_path)
+    
+    gallery_data = [
+        {
+            "id": img.id,
+            "original": img.file_path,
+            "keywords": img.keywords,
+            "ai_versions": output_map.get(img.file_path, [])
+        }
+        for img in images
+    ]
+
+    return gallery_data
