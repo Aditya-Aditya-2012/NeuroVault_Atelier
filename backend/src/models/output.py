@@ -1,5 +1,6 @@
 from sqlite3 import Date
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, ARRAY
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
 from backend.src.db.base import Base

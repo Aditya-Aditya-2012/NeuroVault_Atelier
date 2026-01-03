@@ -9,6 +9,7 @@ from backend.src.db.base import Base
 from backend.src.api import auth, images
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+from fastapi.middleware.cors import CORSMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,10 +21,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="NeuroVault Atelier", lifespan=lifespan)
 
-GENERATED_DIR = Path("backend/data/generated")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # In production, change this to your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+GENERATED_DIR = Path("backend/data/uploads")
 GENERATED_DIR.mkdir(parents=True, exist_ok=True)
 
-app.mount("/outputs", StaticFiles(directory=str(GENERATED_DIR)), name="outputs")
+app.mount("/uploads", StaticFiles(directory=str(GENERATED_DIR)), name="uploads")
 # Include our routes
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(images.router, prefix="/images", tags=["images"])

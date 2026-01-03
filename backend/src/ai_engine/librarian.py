@@ -6,12 +6,12 @@ from transformers import CLIPProcessor, CLIPModel
 class Librarian:
     def __init__(self):
         self.model_id = "openai/clip-vit-base-patch32"
-        self.device = "mps" if torch.backend.mps.is_available() else "cpu"
+        self.device = "mps" if torch.backends.mps.is_available() else "cpu"
         self.labels = ["sunset", "waterfall", "mountain", "forest", "ocean", "cityscape", "night", "snowy"]
 
         print(f"Librarian loading {self.model_id} on {self.device}")
         self.model = CLIPModel.from_pretrained(self.model_id).to(self.device)
-        self.processor = CLIPProcessor.from_pretrained(self.model_id)
+        self.processor = CLIPProcessor.from_pretrained(self.model_id, use_fast=True)
 
     def analyze_image(self, image_path: str, threshold: float = 0.15):
         """Analyzes an image and returns a list of valid labels."""

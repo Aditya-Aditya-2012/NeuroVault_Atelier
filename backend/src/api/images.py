@@ -14,6 +14,8 @@ from backend.src.models.task import AITask, TaskStatus
 from backend.src.tasks.ai_tasks import auto_tag_image_task, process_landscape_task, process_multi_alchemy
 from sqlalchemy import select
 from collections import defaultdict
+from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 
 router = APIRouter()
 
@@ -83,11 +85,12 @@ async def get_image_status(
     # If no image found, raise 404
     if not image:
         raise HTTPException(status_code=404, detail="Image not found or access denied")
-    
+
     return {
         "id": image_id,
         "filename": image.filename,
-        "is_processed": image.is_processed
+        "is_processed": image.is_processed,
+        "keywords": image.keywords
     }
 
 @router.post("/alchemy")
@@ -195,7 +198,7 @@ async def get_full_gallery(
     all_paths = [img.file_path for img in images]
 
     out_result = await db.execute(
-        select(Output).where(Output.source_filenames.overlap(all_paths))
+        select(Output).where(Output.source_filenames.cast(PG_ARRAY(String)).overlap(all_paths))
     )
 
     outputs = out_result.scalars().all()
