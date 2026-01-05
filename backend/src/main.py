@@ -11,6 +11,10 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
 
+async def init_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Create tables
